@@ -3,7 +3,7 @@ package okx
 import (
 	"testing"
 
-	"github.com/crypto-swap-go/pkg/models"
+	"github.com/YuanJey/crypto-swap-go/pkg/models"
 )
 
 func TestMapOKXOrderStatus(t *testing.T) {

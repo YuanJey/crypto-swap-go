@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crypto-swap-go/internal/transport"
-	"github.com/crypto-swap-go/pkg/models"
-	"github.com/crypto-swap-go/pkg/modules"
+	"github.com/YuanJey/crypto-swap-go/internal/transport"
+	"github.com/YuanJey/crypto-swap-go/pkg/models"
+	"github.com/YuanJey/crypto-swap-go/pkg/modules"
 	"github.com/shopspring/decimal"
 )
 

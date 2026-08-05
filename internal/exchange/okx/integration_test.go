@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crypto-swap-go/internal/integration"
-	"github.com/crypto-swap-go/pkg/models"
+	"github.com/YuanJey/crypto-swap-go/internal/integration"
+	"github.com/YuanJey/crypto-swap-go/pkg/models"
 	"github.com/shopspring/decimal"
 )
 

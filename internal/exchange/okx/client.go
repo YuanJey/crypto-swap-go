@@ -3,7 +3,7 @@ package okx
 import (
 	"context"
 
-	"github.com/crypto-swap-go/pkg/modules"
+	"github.com/YuanJey/crypto-swap-go/pkg/modules"
 )
 
 type OKXClient struct {

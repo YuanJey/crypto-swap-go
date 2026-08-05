@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/crypto-swap-go/pkg/models"
+	"github.com/YuanJey/crypto-swap-go/pkg/models"
 )
 
 func TestMarketModuleHandleBookTicker(t *testing.T) {

@@ -3,7 +3,7 @@ package binance
 import (
 	"testing"
 
-	"github.com/crypto-swap-go/pkg/models"
+	"github.com/YuanJey/crypto-swap-go/pkg/models"
 	"github.com/shopspring/decimal"
 )
 

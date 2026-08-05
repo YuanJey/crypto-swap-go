@@ -3,7 +3,7 @@ package binance
 import (
 	"context"
 
-	"github.com/crypto-swap-go/pkg/modules"
+	"github.com/YuanJey/crypto-swap-go/pkg/modules"
 )
 
 type BinanceClient struct {

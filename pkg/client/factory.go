@@ -3,9 +3,9 @@ package client
 import (
 	"errors"
 
-	"github.com/crypto-swap-go/internal/exchange/binance"
-	"github.com/crypto-swap-go/internal/exchange/okx"
-	"github.com/crypto-swap-go/pkg/modules"
+	"github.com/YuanJey/crypto-swap-go/internal/exchange/binance"
+	"github.com/YuanJey/crypto-swap-go/internal/exchange/okx"
+	"github.com/YuanJey/crypto-swap-go/pkg/modules"
 )
 
 type ExchangeType string
@@ -23,9 +23,9 @@ type Credentials struct {
 
 // Config defines SDK initialization parameters
 type Config struct {
-	Exchange   ExchangeType
-	Testnet    bool
-	Creds      Credentials
+	Exchange ExchangeType
+	Testnet  bool
+	Creds    Credentials
 }
 
 // NewClient initializes and returns an exchange-specific unified client

@@ -15,16 +15,16 @@ type MessageHandler func(message []byte)
 
 // WSClient represents a resilient WebSocket client
 type WSClient struct {
-	url           string
-	conn          *websocket.Conn
-	mu            sync.Mutex
-	sendChan      chan []byte
-	handler       MessageHandler
-	ctx           context.Context
-	cancel        context.CancelFunc
-	reconnectCh   chan struct{}
-	pingInterval  time.Duration
-	writeWait     time.Duration
+	url          string
+	conn         *websocket.Conn
+	mu           sync.Mutex
+	sendChan     chan []byte
+	handler      MessageHandler
+	ctx          context.Context
+	cancel       context.CancelFunc
+	reconnectCh  chan struct{}
+	pingInterval time.Duration
+	writeWait    time.Duration
 }
 
 // NewWSClient creates a new resilient WebSocket client
@@ -47,7 +47,7 @@ func (c *WSClient) Start() error {
 	if err := c.connect(); err != nil {
 		return err
 	}
-	
+
 	go c.monitor()
 	return nil
 }
@@ -86,7 +86,7 @@ func (c *WSClient) connect() error {
 
 	go c.readPump(conn)
 	go c.writePump(conn)
-	
+
 	return nil
 }
 
@@ -121,12 +121,12 @@ func (c *WSClient) reconnect() {
 		default:
 			log.Printf("Reconnecting to %s in %v...\n", c.url, backoff)
 			time.Sleep(backoff)
-			
+
 			if err := c.connect(); err == nil {
 				log.Println("Reconnected successfully.")
 				return
 			}
-			
+
 			backoff *= 2
 			if backoff > maxBackoff {
 				backoff = maxBackoff

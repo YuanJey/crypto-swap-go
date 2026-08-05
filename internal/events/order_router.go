@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/crypto-swap-go/pkg/models"
-	"github.com/crypto-swap-go/pkg/modules"
+	"github.com/YuanJey/crypto-swap-go/pkg/models"
+	"github.com/YuanJey/crypto-swap-go/pkg/modules"
 )
 
 type Router struct {

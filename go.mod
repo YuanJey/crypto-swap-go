@@ -1,4 +1,4 @@
-module github.com/crypto-swap-go
+module github.com/YuanJey/crypto-swap-go
 
 go 1.26.1
 
