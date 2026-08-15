@@ -49,7 +49,7 @@ _, err := trading.PlaceMarketOrder(ctx, models.PlaceOrderReq{
 	ClientOrderID: clientOrderID,
 	Side:          models.OrderSideBuy,
 	PositionSide:  models.PositionSideLong,
-	Quantity:      qty,
+	BaseQuantity:  qty,
 })
 ```
 
@@ -66,7 +66,7 @@ order, err := trading.PlaceTPSL(ctx, models.TPSLReq{
 	ClientOrderID: baseID,
 	Side:          models.OrderSideBuy,
 	PositionSide:  models.PositionSideLong,
-	Quantity:      qty,
+	BaseQuantity:  qty,
 	TakeProfit:    takeProfit,
 	StopLoss:      stopLoss,
 })
@@ -84,7 +84,7 @@ orderID, err := trading.AmendOrder(ctx, models.AmendOrderReq{
 	ClientOrderID: "strategy123limit1",
 	Side:          models.OrderSideBuy, // required by Binance amend order
 	Price:         newPrice,
-	Quantity:      newQty,
+	BaseQuantity:  newQty,
 })
 ```
 
@@ -103,7 +103,7 @@ trailing, err := trading.PlaceTrailingOrder(ctx, models.TrailingOrderReq{
 	Side:            models.OrderSideBuy,
 	PositionSide:    models.PositionSideLong,
 	MarginMode:      models.MarginModeCross,
-	Quantity:        qty,
+	BaseQuantity:    qty,
 	ActivationPrice: activePrice,
 	CallbackSpread:  decimal.RequireFromString("100"), // price-distance callback
 })
@@ -125,6 +125,23 @@ For OKX swaps, `CtVal` is the exchange contract face value. For Binance USDT-M
 contracts, orders are sized in base asset quantity, so `CtVal` and `CtMult`
 default to `1`. Strategy sizing can use `BaseLotSize`, `BaseMinQty`, and
 `BaseStepSize` as normalized base asset quantities.
+
+Order requests accept both exchange-native quantity and normalized base-asset
+quantity:
+
+```go
+// Recommended for cross-exchange strategies: always express size in base asset.
+BaseQuantity: decimal.RequireFromString("0.1") // 0.1 ETH or BTC
+
+// Advanced/raw mode: exchange-native quantity.
+// Binance USDT-M: base asset quantity. OKX swaps: contract count.
+Quantity: decimal.RequireFromString("1")
+```
+
+When `BaseQuantity` is set, the SDK converts it to exchange order quantity using
+`Instrument.OrderQuantityFromBase`. For example, an OKX ETH swap with
+`CtVal=0.1` converts `BaseQuantity=0.3 ETH` to `Quantity=3` contracts, while
+Binance keeps `0.3` as `0.3` base asset.
 
 ## Market Data
 

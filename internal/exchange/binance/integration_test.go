@@ -125,7 +125,7 @@ func TestIntegrationBinancePlaceAndCancelOrder(t *testing.T) {
 		PositionSide:  models.PositionSideLong,
 		MarginMode:    models.MarginModeCross,
 		Price:         price,
-		Quantity:      decimal.RequireFromString("0.001"),
+		BaseQuantity:  decimal.RequireFromString("0.001"),
 		TimeInForce:   "GTC",
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func TestIntegrationBinancePlaceAndCancelOrder(t *testing.T) {
 		ClientOrderID: clientOrderID,
 		Side:          models.OrderSideBuy,
 		Price:         ticker.BidPrice.Mul(decimal.NewFromFloat(0.985)).Round(1),
-		Quantity:      decimal.RequireFromString("0.001"),
+		BaseQuantity:  decimal.RequireFromString("0.001"),
 	})
 	if err != nil {
 		t.Fatalf("AmendOrder() error = %v", err)
@@ -190,7 +190,7 @@ func TestIntegrationBinancePlaceTrailingOrder(t *testing.T) {
 		Side:            models.OrderSideBuy,
 		PositionSide:    models.PositionSideLong,
 		MarginMode:      models.MarginModeCross,
-		Quantity:        decimal.RequireFromString("0.001"),
+		BaseQuantity:    decimal.RequireFromString("0.001"),
 		ActivationPrice: activationPrice,
 		CallbackSpread:  activationPrice.Mul(decimal.RequireFromString("0.05")).Round(1),
 	})
@@ -260,7 +260,7 @@ func TestIntegrationBinanceFullTradingLifecycle(t *testing.T) {
 		Side:          models.OrderSideBuy,
 		PositionSide:  models.PositionSideLong,
 		MarginMode:    models.MarginModeCross,
-		Quantity:      decimal.RequireFromString("0.001"),
+		BaseQuantity:  decimal.RequireFromString("0.001"),
 	})
 	if err != nil {
 		t.Fatalf("PlaceMarketOrder(open) error = %v", err)
@@ -320,7 +320,7 @@ func TestIntegrationBinanceFullTradingLifecycle(t *testing.T) {
 		Side:          models.OrderSideBuy,
 		PositionSide:  models.PositionSideLong,
 		MarginMode:    models.MarginModeCross,
-		Quantity:      decimal.RequireFromString("0.001"),
+		BaseQuantity:  decimal.RequireFromString("0.001"),
 	})
 	if err != nil {
 		t.Fatalf("PlaceMarketOrder(add) error = %v", err)

@@ -70,6 +70,7 @@ type TPSLReq struct {
 	PositionSide  PositionSide
 	MarginMode    MarginMode
 	Quantity      decimal.Decimal
+	BaseQuantity  decimal.Decimal // Unified base-asset quantity. If set, SDK converts it to exchange order quantity.
 	TakeProfit    decimal.Decimal
 	StopLoss      decimal.Decimal
 }
@@ -89,6 +90,7 @@ type TrailingOrderReq struct {
 	MarginMode      MarginMode
 	ReduceOnly      bool
 	Quantity        decimal.Decimal
+	BaseQuantity    decimal.Decimal // Unified base-asset quantity. If set, SDK converts it to exchange order quantity.
 	ActivationPrice decimal.Decimal
 	CallbackSpread  decimal.Decimal // Unified price-distance callback. Preferred.
 	CallbackRatio   decimal.Decimal // Optional fallback; 0.05 means 5%.
@@ -136,6 +138,7 @@ type AmendOrderReq struct {
 	Side             OrderSide
 	Price            decimal.Decimal
 	Quantity         decimal.Decimal
+	BaseQuantity     decimal.Decimal // Unified base-asset quantity. If set, SDK converts it to exchange order quantity.
 }
 
 // OrderUpdate represents an incoming order update from the exchange WebSocket
@@ -178,5 +181,6 @@ type PlaceOrderReq struct {
 	ReduceOnly    bool
 	Price         decimal.Decimal
 	Quantity      decimal.Decimal
-	TimeInForce   string // "GTC", "IOC", "FOK"
+	BaseQuantity  decimal.Decimal // Unified base-asset quantity. If set, SDK converts it to exchange order quantity.
+	TimeInForce   string          // "GTC", "IOC", "FOK"
 }

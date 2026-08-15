@@ -47,6 +47,77 @@ type Instrument struct {
 	TickSize     decimal.Decimal
 }
 
+// OrderQuantityFromBase converts a normalized base-asset quantity into the
+// exchange order quantity. OKX swaps return contract count; Binance USDT-M
+// returns the same base quantity because CtVal/CtMult default to 1.
+func (i Instrument) OrderQuantityFromBase(baseQty decimal.Decimal) decimal.Decimal {
+	if baseQty.IsZero() {
+		return decimal.Zero
+	}
+	unit := i.contractUnit()
+	qty := baseQty.Div(unit)
+	return floorToStep(qty, i.exchangeStep())
+}
+
+// BaseQuantityFromOrder converts an exchange order quantity into base-asset
+// quantity. For OKX this is contracts * contract value; for Binance it is qty.
+func (i Instrument) BaseQuantityFromOrder(orderQty decimal.Decimal) decimal.Decimal {
+	if orderQty.IsZero() {
+		return decimal.Zero
+	}
+	return orderQty.Mul(i.contractUnit())
+}
+
+// PriceToTick floors a price to the exchange tick size.
+func (i Instrument) PriceToTick(price decimal.Decimal) decimal.Decimal {
+	if price.IsZero() {
+		return decimal.Zero
+	}
+	return floorToStep(price, i.TickSize)
+}
+
+func (i Instrument) contractUnit() decimal.Decimal {
+	unit := i.CtVal
+	if unit.IsZero() {
+		unit = decimal.NewFromInt(1)
+	}
+	if !i.CtMult.IsZero() {
+		unit = unit.Mul(i.CtMult)
+	}
+	if unit.IsZero() {
+		return decimal.NewFromInt(1)
+	}
+	return unit
+}
+
+func (i Instrument) exchangeStep() decimal.Decimal {
+	if !i.StepSize.IsZero() {
+		return i.StepSize
+	}
+	if !i.LotSize.IsZero() {
+		return i.LotSize
+	}
+	if !i.MinQty.IsZero() {
+		return i.MinQty
+	}
+	return decimal.Zero
+}
+
+func floorToStep(value, step decimal.Decimal) decimal.Decimal {
+	if step.IsZero() {
+		return value
+	}
+	rounded := value.Div(step).Floor().Mul(step)
+	return rounded.RoundFloor(decimalPlaces(step))
+}
+
+func decimalPlaces(value decimal.Decimal) int32 {
+	if value.Exponent() >= 0 {
+		return 0
+	}
+	return -value.Exponent()
+}
+
 // Position represents unified perpetual contract position
 type Position struct {
 	Exchange         string

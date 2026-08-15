@@ -107,6 +107,15 @@ func TestMarketModuleGetInstrument(t *testing.T) {
 			StatusCode: http.StatusOK,
 			Body: io.NopCloser(strings.NewReader(`{
 			"symbols": [{
+				"symbol": "ETHUSDT",
+				"baseAsset": "ETH",
+				"quoteAsset": "USDT",
+				"contractType": "PERPETUAL",
+				"filters": [
+					{"filterType": "PRICE_FILTER", "tickSize": "0.01"},
+					{"filterType": "LOT_SIZE", "minQty": "0.001", "stepSize": "0.001"}
+				]
+			}, {
 				"symbol": "BTCUSDT",
 				"baseAsset": "BTC",
 				"quoteAsset": "USDT",

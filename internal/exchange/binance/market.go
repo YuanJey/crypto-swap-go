@@ -43,6 +43,19 @@ type binanceKlineEvent struct {
 	} `json:"k"`
 }
 
+type binanceInstrumentInfo struct {
+	Symbol       string `json:"symbol"`
+	BaseAsset    string `json:"baseAsset"`
+	QuoteAsset   string `json:"quoteAsset"`
+	ContractType string `json:"contractType"`
+	Filters      []struct {
+		FilterType string `json:"filterType"`
+		MinQty     string `json:"minQty"`
+		StepSize   string `json:"stepSize"`
+		TickSize   string `json:"tickSize"`
+	} `json:"filters"`
+}
+
 type MarketModule struct {
 	wsClient       *transport.WSClient
 	candleWSClient *transport.WSClient
@@ -220,18 +233,7 @@ func (m *MarketModule) GetInstrument(ctx context.Context, symbol string) (*model
 	}
 
 	var data struct {
-		Symbols []struct {
-			Symbol       string `json:"symbol"`
-			BaseAsset    string `json:"baseAsset"`
-			QuoteAsset   string `json:"quoteAsset"`
-			ContractType string `json:"contractType"`
-			Filters      []struct {
-				FilterType string `json:"filterType"`
-				MinQty     string `json:"minQty"`
-				StepSize   string `json:"stepSize"`
-				TickSize   string `json:"tickSize"`
-			} `json:"filters"`
-		} `json:"symbols"`
+		Symbols []binanceInstrumentInfo `json:"symbols"`
 	}
 	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, err
@@ -240,7 +242,10 @@ func (m *MarketModule) GetInstrument(ctx context.Context, symbol string) (*model
 		return nil, fmt.Errorf("binance instrument %s not found", symbol)
 	}
 
-	item := data.Symbols[0]
+	item, ok := findBinanceInstrument(data.Symbols, symbol)
+	if !ok {
+		return nil, fmt.Errorf("binance instrument %s not found", symbol)
+	}
 	instrument := &models.Instrument{
 		Exchange:     "binance",
 		Symbol:       item.Symbol,
@@ -268,6 +273,16 @@ func (m *MarketModule) GetInstrument(ctx context.Context, symbol string) (*model
 	}
 	fillBaseInstrumentQuantities(instrument)
 	return instrument, nil
+}
+
+func findBinanceInstrument(items []binanceInstrumentInfo, symbol string) (binanceInstrumentInfo, bool) {
+	for _, item := range items {
+		if item.Symbol == symbol {
+			return item, true
+		}
+	}
+	var zero binanceInstrumentInfo
+	return zero, false
 }
 
 func fillBaseInstrumentQuantities(instrument *models.Instrument) {

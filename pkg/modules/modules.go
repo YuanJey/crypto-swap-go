@@ -78,6 +78,7 @@ type TradingModule interface {
 	GetOpenAlgoOrders(ctx context.Context, symbol string) ([]models.OpenAlgoOrder, error)
 	CancelTPSL(ctx context.Context, symbol string, order models.TPSLOrder) error
 	UpdateTPSL(ctx context.Context, old models.TPSLOrder, req models.TPSLReq) (models.TPSLOrder, error)
+	GetBalance(ctx context.Context, asset string) (*models.AccountBalance, error)
 	GetPosition(ctx context.Context, symbol string, side models.PositionSide) (*models.Position, error)
 	ClosePosition(ctx context.Context, symbol string, side models.PositionSide) (string, error)
 }

@@ -270,8 +270,8 @@ func (t *TradingModule) handleBalanceMessage(msg []byte) {
 
 	for _, data := range event.Data {
 		for _, item := range data.Details {
-			balanceStr := firstNonEmpty(item.CashBal, item.Eq)
-			availableStr := firstNonEmpty(item.AvailBal, item.AvailEq)
+			balanceStr := firstNonEmpty(item.Eq, item.CashBal)
+			availableStr := firstNonEmpty(item.AvailEq, item.AvailBal)
 			balance, _ := decimal.NewFromString(balanceStr)
 			available, _ := decimal.NewFromString(availableStr)
 			updateTime := parseInt64(item.UTime)
@@ -647,6 +647,61 @@ func (t *TradingModule) sendRequest(ctx context.Context, method, endpoint string
 	return respBody, nil
 }
 
+func (t *TradingModule) GetBalance(ctx context.Context, asset string) (*models.AccountBalance, error) {
+	wantAsset := strings.ToUpper(asset)
+	if wantAsset == "" {
+		wantAsset = "USDT"
+	}
+	endpoint := "/api/v5/account/balance?ccy=" + url.QueryEscape(wantAsset)
+	respBytes, err := t.sendRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Code string `json:"code"`
+		Msg  string `json:"msg"`
+		Data []struct {
+			UTime   string `json:"uTime"`
+			Details []struct {
+				CCY      string `json:"ccy"`
+				Eq       string `json:"eq"`
+				CashBal  string `json:"cashBal"`
+				AvailBal string `json:"availBal"`
+				AvailEq  string `json:"availEq"`
+				UTime    string `json:"uTime"`
+			} `json:"details"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Code != "" && resp.Code != "0" {
+		return nil, fmt.Errorf("okx get balance error: code=%s msg=%s", resp.Code, resp.Msg)
+	}
+	for _, data := range resp.Data {
+		for _, item := range data.Details {
+			if strings.ToUpper(item.CCY) != wantAsset {
+				continue
+			}
+			balance, _ := decimal.NewFromString(firstNonEmpty(item.Eq, item.CashBal))
+			available, _ := decimal.NewFromString(firstNonEmpty(item.AvailEq, item.AvailBal))
+			updateTime := parseInt64(item.UTime)
+			if updateTime == 0 {
+				updateTime = parseInt64(data.UTime)
+			}
+			return &models.AccountBalance{
+				Exchange:   "okx",
+				Asset:      item.CCY,
+				Balance:    balance,
+				Available:  available,
+				UpdateTime: updateTime,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("balance not found for %s", wantAsset)
+}
+
 func (t *TradingModule) PlaceOrder(ctx context.Context, req models.PlaceOrderReq) (string, error) {
 	return t.placeOrder(ctx, req, "limit")
 }
@@ -656,6 +711,10 @@ func (t *TradingModule) PlaceMarketOrder(ctx context.Context, req models.PlaceOr
 }
 
 func (t *TradingModule) placeOrder(ctx context.Context, req models.PlaceOrderReq, ordType string) (string, error) {
+	quantity, err := t.resolveOrderQuantity(ctx, req.Symbol, req.Quantity, req.BaseQuantity)
+	if err != nil {
+		return "", err
+	}
 	side := "buy"
 	if req.Side == models.OrderSideSell {
 		side = "sell"
@@ -675,11 +734,15 @@ func (t *TradingModule) placeOrder(ctx context.Context, req models.PlaceOrderReq
 		"side":    side,
 		"posSide": okxDefaultPositionSide(req),
 		"ordType": ordType,
-		"sz":      req.Quantity.String(),
+		"sz":      quantity.String(),
 		"clOrdId": req.ClientOrderID,
 	}
 	if ordType != "market" {
-		bodyMap["px"] = req.Price.String()
+		price, err := t.resolveOrderPrice(ctx, req.Symbol, req.Price)
+		if err != nil {
+			return "", err
+		}
+		bodyMap["px"] = price.String()
 	}
 	if req.ReduceOnly {
 		bodyMap["reduceOnly"] = true
@@ -786,10 +849,18 @@ func (t *TradingModule) AmendOrder(ctx context.Context, req models.AmendOrderReq
 		bodyMap["newClOrdId"] = req.NewClientOrderID
 	}
 	if !req.Price.IsZero() {
-		bodyMap["newPx"] = req.Price.String()
+		price, err := t.resolveOrderPrice(ctx, req.Symbol, req.Price)
+		if err != nil {
+			return "", err
+		}
+		bodyMap["newPx"] = price.String()
 	}
-	if !req.Quantity.IsZero() {
-		bodyMap["newSz"] = req.Quantity.String()
+	quantity, err := t.resolveOrderQuantity(ctx, req.Symbol, req.Quantity, req.BaseQuantity)
+	if err != nil {
+		return "", err
+	}
+	if !quantity.IsZero() {
+		bodyMap["newSz"] = quantity.String()
 	}
 
 	body, _ := json.Marshal(bodyMap)
@@ -817,6 +888,11 @@ func (t *TradingModule) AmendOrder(ctx context.Context, req models.AmendOrderReq
 
 func (t *TradingModule) PlaceTPSL(ctx context.Context, req models.TPSLReq) (models.TPSLOrder, error) {
 	var order models.TPSLOrder
+	quantity, err := t.resolveOrderQuantity(ctx, req.Symbol, req.Quantity, req.BaseQuantity)
+	if err != nil {
+		return order, err
+	}
+	req.Quantity = quantity
 	closeSide := models.OrderSideSell
 	if req.Side == models.OrderSideSell {
 		closeSide = models.OrderSideBuy
@@ -837,6 +913,11 @@ func (t *TradingModule) PlaceTPSL(ctx context.Context, req models.TPSLReq) (mode
 	}
 
 	if !req.TakeProfit.IsZero() {
+		takeProfit, err := t.resolveOrderPrice(ctx, req.Symbol, req.TakeProfit)
+		if err != nil {
+			return order, err
+		}
+		req.TakeProfit = takeProfit
 		clientOrderID := req.ClientOrderID + "tp"
 		id, err := t.placeAlgoCloseOrder(ctx, req.Symbol, clientOrderID, closeSide, positionSide, marginMode, req.Quantity, "conditional", req.TakeProfit, true)
 		if err != nil {
@@ -847,6 +928,11 @@ func (t *TradingModule) PlaceTPSL(ctx context.Context, req models.TPSLReq) (mode
 		t.dispatchAlgoOrderUpdate(req, clientOrderID, id, closeSide, positionSide, req.TakeProfit, models.OrderStatusNew)
 	}
 	if !req.StopLoss.IsZero() {
+		stopLoss, err := t.resolveOrderPrice(ctx, req.Symbol, req.StopLoss)
+		if err != nil {
+			return order, err
+		}
+		req.StopLoss = stopLoss
 		clientOrderID := req.ClientOrderID + "sl"
 		id, err := t.placeAlgoCloseOrder(ctx, req.Symbol, clientOrderID, closeSide, positionSide, marginMode, req.Quantity, "conditional", req.StopLoss, false)
 		if err != nil {
@@ -869,6 +955,10 @@ func (t *TradingModule) PlaceTrailingOrder(ctx context.Context, req models.Trail
 	if req.CallbackSpread.IsZero() && req.CallbackRatio.IsZero() {
 		return models.TrailingOrder{}, fmt.Errorf("callback spread or callback ratio is required")
 	}
+	quantity, err := t.resolveOrderQuantity(ctx, req.Symbol, req.Quantity, req.BaseQuantity)
+	if err != nil {
+		return models.TrailingOrder{}, err
+	}
 	positionSide := req.PositionSide
 	if positionSide == "" {
 		positionSide = models.PositionSideLong
@@ -890,10 +980,15 @@ func (t *TradingModule) PlaceTrailingOrder(ctx context.Context, req models.Trail
 		"side":        strings.ToLower(string(req.Side)),
 		"posSide":     strings.ToLower(string(positionSide)),
 		"ordType":     "move_order_stop",
-		"sz":          req.Quantity.String(),
+		"sz":          quantity.String(),
 		"algoClOrdId": req.ClientOrderID,
 	}
 	if !req.ActivationPrice.IsZero() {
+		activationPrice, err := t.resolveOrderPrice(ctx, req.Symbol, req.ActivationPrice)
+		if err != nil {
+			return models.TrailingOrder{}, err
+		}
+		req.ActivationPrice = activationPrice
 		bodyMap["activePx"] = req.ActivationPrice.String()
 	}
 	if !req.CallbackRatio.IsZero() {
@@ -929,12 +1024,41 @@ func (t *TradingModule) PlaceTrailingOrder(ctx context.Context, req models.Trail
 	orderID := resp.Data[0].AlgoID
 	t.dispatchAlgoOrderUpdate(models.TPSLReq{
 		Symbol:   req.Symbol,
-		Quantity: req.Quantity,
+		Quantity: quantity,
 	}, req.ClientOrderID, orderID, req.Side, positionSide, req.ActivationPrice, models.OrderStatusNew)
 	return models.TrailingOrder{
 		ClientOrderID: req.ClientOrderID,
 		OrderID:       orderID,
 	}, nil
+}
+
+func (t *TradingModule) resolveOrderQuantity(ctx context.Context, symbol string, quantity, baseQuantity decimal.Decimal) (decimal.Decimal, error) {
+	instrument, err := NewMarketModule(t.testnet).GetInstrument(ctx, symbol)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	if baseQuantity.IsZero() {
+		return instrument.OrderQuantityFromBase(instrument.BaseQuantityFromOrder(quantity)), nil
+	}
+	orderQty := instrument.OrderQuantityFromBase(baseQuantity)
+	if orderQty.IsZero() {
+		return decimal.Zero, fmt.Errorf("base quantity %s is below exchange step for %s", baseQuantity, symbol)
+	}
+	if !instrument.MinQty.IsZero() && orderQty.LessThan(instrument.MinQty) {
+		return decimal.Zero, fmt.Errorf("base quantity %s converts to %s, below minimum order quantity %s for %s", baseQuantity, orderQty, instrument.MinQty, symbol)
+	}
+	return orderQty, nil
+}
+
+func (t *TradingModule) resolveOrderPrice(ctx context.Context, symbol string, price decimal.Decimal) (decimal.Decimal, error) {
+	if price.IsZero() {
+		return decimal.Zero, nil
+	}
+	instrument, err := NewMarketModule(t.testnet).GetInstrument(ctx, symbol)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	return instrument.PriceToTick(price), nil
 }
 
 func (t *TradingModule) placeAlgoCloseOrder(ctx context.Context, symbol, clientOrderID string, side models.OrderSide, positionSide models.PositionSide, marginMode models.MarginMode, qty decimal.Decimal, ordType string, trigger decimal.Decimal, takeProfit bool) (string, error) {
